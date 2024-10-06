@@ -36,8 +36,23 @@ const register = async (req, res) => {
     res.status(201).json({ token });
   } catch (error) {
     await transaction.rollback();
-    console.log(`${username} registration cancelled`);
-    res.status(400).json({ error: "Registration error" });
+    console.log(
+      `${username} registration cancelled (${error.errors[0].message})`
+    );
+    console.log(error);
+    let errorMessage;
+    const errorCode = error.parent.code;
+    switch (errorCode) {
+      case "23505":
+        errorMessage = "Username is already in use";
+        break;
+
+      default:
+        errorMessage = error.errors[0].message;
+        break;
+    }
+
+    res.status(400).json({ error: errorMessage });
   }
 };
 

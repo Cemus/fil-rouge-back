@@ -298,8 +298,13 @@ const applyCardEffects = (effect, isfighter, state, seed, currentFighter) => {
         const otherFighterPosition = isfighter
           ? state.fighter2Position
           : state.fighter1Position;
+
         const numberOfMovement = Math.abs(effect.value);
+        const movementDirection =
+          currentFighterPosition < otherFighterPosition ? 1 : -1;
+
         let newPosition = currentFighterPosition;
+
         for (let i = 0; i < numberOfMovement; i++) {
           if (
             canFighterMove(
@@ -308,7 +313,7 @@ const applyCardEffects = (effect, isfighter, state, seed, currentFighter) => {
               Math.sign(effect.value)
             )
           ) {
-            newPosition += Math.sign(effect.value) * 3;
+            newPosition += movementDirection * 3;
           }
         }
         if (isfighter) {
