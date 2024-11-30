@@ -1,74 +1,70 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const sequelize = require("../db");
+const db = require("../db");
 const { createInitialCollection } = require("./cardController");
-const { getFighterIncludeOptions } = require("./fighterController");
-const User = require("../models/User");
-const Fighter = require("../models/fighter/Fighter");
-const { getUserEquipments } = require("./equipmentController");
-require("../models/indexModel");
+const { getFighterEquipment } = require("./equipmentController");
+const { getDeckForFighter } = require("./cardController");
+const { getVisualsForFighter } = require("./visualsController");
+const { getStatsForFighter } = require("./statsController");
 
 const register = async (req, res) => {
-  console.log("registering");
   const { username, password } = req.body;
-  const transaction = await sequelize.transaction();
+
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await User.create(
-      {
-        username,
-        password: hashedPassword,
-      },
-      { transaction }
+    //transaction
+    await db.query("BEGIN");
+
+    //create user
+    const userResult = await db.query(
+      `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id`,
+      [username, hashedPassword]
     );
+    const newUserId = userResult.rows[0].id;
 
-    await createInitialCollection(newUser, transaction);
+    //first cards
+    await createInitialCollection(newUserId);
 
-    await transaction.commit();
+    //commit
+    await db.query("COMMIT");
 
-    const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: newUserId }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
 
-    console.log(`${username} registered`);
-
     res.status(201).json({ token });
   } catch (error) {
-    await transaction.rollback();
-    console.log(
-      `${username} registration cancelled (${error.errors[0].message})`
-    );
-    console.log(error);
-    let errorMessage;
-    const errorCode = error.parent.code;
-    switch (errorCode) {
-      case "23505":
-        errorMessage = "Username is already in use";
-        break;
+    await db.query("ROLLBACK");
+    console.error("Erreur lors de l'inscription :", error);
 
-      default:
-        errorMessage = error.errors[0].message;
-        break;
-    }
+    const errorMessage =
+      error.code === "23505"
+        ? "Username is already in use"
+        : "An error occurred";
 
     res.status(400).json({ error: errorMessage });
   }
 };
 
 const login = async (req, res) => {
-  console.log("logging in");
   const { username, password } = req.body;
+
   try {
-    const user = await User.findOne({ where: { username } });
-    if (!user) {
+    const userResult = await db.query(
+      `SELECT id, password FROM users WHERE username = $1`,
+      [username]
+    );
+
+    if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
+
+    const user = userResult.rows[0];
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      console.log("connection failed with", username, ": invalid password");
       return res.status(401).json({ error: "Invalid password" });
     }
 
@@ -76,66 +72,82 @@ const login = async (req, res) => {
       expiresIn: "1h",
     });
 
-    const fighters = await Fighter.findAll({ where: { user_id: user.id } });
+    const fightersResult = await db.query(
+      `SELECT id FROM fighters WHERE user_id = $1`,
+      [user.id]
+    );
 
-    console.log(`${username} logged in`);
-    res.status(200).json({ token, hasFighters: fighters.length > 0 });
+    res
+      .status(200)
+      .json({ token, hasFighters: fightersResult.rows.length > 0 });
   } catch (error) {
-    console.log("code error : ", error.code);
-
-    res.status(500).json({ error: error.message });
+    console.error("Erreur lors de la connexion :", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
 const getUser = async (req, res) => {
   try {
-    console.log("GET USER!", req.user.id);
-    const user = await User.findByPk(req.user.id, {
-      attributes: ["id", "username"],
-      include: [
-        {
-          model: Fighter,
-          include: getFighterIncludeOptions(),
-        },
-      ],
-    });
-    if (!user) {
-      throw new Error("User not found");
-    }
-    const equipments = await getUserEquipments(req.user.id);
-    const fightersWithEquipments = user.fighters.map((fighter) => ({
-      ...fighter.toJSON(),
-      equipments: equipments,
-    }));
+    const userId = req.user.id;
 
-    res.status(200).json({
-      ...user.toJSON(),
-      fighters: fightersWithEquipments,
-    });
+    const userResult = await db.query(
+      `SELECT id, username FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = userResult.rows[0];
+
+    const fightersResult = await db.query(
+      `SELECT * FROM fighters WHERE user_id = $1`,
+      [userId]
+    );
+
+    const fighters = fightersResult.rows;
+
+    const fightersWithDetails = await Promise.all(
+      fighters.map(async (fighter) => {
+        const fighterDeck = await getDeckForFighter(fighter.id);
+        const fighterEquipment = await getFighterEquipment(fighter.id);
+        const fighterVisuals = await getVisualsForFighter(fighter.id);
+        const fighterStats = await getStatsForFighter(fighter.id);
+        return {
+          ...fighter,
+          equipment: fighterEquipment,
+          deck: fighterDeck,
+          visuals: fighterVisuals,
+          stats: fighterStats,
+        };
+      })
+    );
+
+    const userProfile = {
+      ...user,
+      fighters: fightersWithDetails,
+    };
+
+    res.status(200).json(userProfile);
   } catch (error) {
-    console.error("Failed to fetch user profile:", error);
+    console.error("Erreur lors de la récupération du profil :", error);
     res.status(500).json({ error: "Failed to fetch user profile" });
   }
 };
 
 const getAllUsers = async (req, res) => {
   try {
-    console.log("GET ALL USER!");
-    const users = await User.findAll({
-      attributes: ["id", "username"],
-    });
+    const usersResult = await db.query(`SELECT id, username FROM users`);
 
-    if (!users.length) {
+    if (usersResult.rows.length === 0) {
       return res.status(404).json({ error: "No users found" });
     }
 
-    res.status(200).json(users);
+    res.status(200).json(usersResult.rows);
   } catch (error) {
-    console.error(
-      "Erreur lors de la récupération des noms d'utilisateurs:",
-      error
-    );
-    res.status(500).json({ error: "Erreur interne du serveur" });
+    console.error("Erreur lors de la récupération des utilisateurs :", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 

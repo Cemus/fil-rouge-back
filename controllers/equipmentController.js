@@ -1,26 +1,62 @@
-const Equipment = require("../models/equipment/Equipment");
-const Item = require("../models/equipment/Item");
-const Fighter = require("../models/fighter/Fighter");
+const db = require("../db");
+const { toCamelCase } = require("../utils/toCamelCase");
+
+const getFighterEquipment = async (fighterId) => {
+  try {
+    const result = await db.query(
+      `SELECT 
+      i.id , i.name AS item_name, i.description, i.slot, i.type, i.hp, i.atk, i.spd, i.mag, i.range
+    FROM equipments e
+    LEFT JOIN items i ON e.item_id = i.id
+    WHERE e.fighter_id = $1;
+  `,
+      [fighterId]
+    );
+    console.log(result.rows);
+    return toCamelCase(result.rows);
+  } catch (error) {
+    console.error("Error fetching fighter equipment:", error);
+    throw error;
+  }
+};
 
 const getUserEquipments = async (userId) => {
-  return Equipment.findAll({
-    where: { user_id: userId },
-    include: [{ model: Item, as: "item" }],
-  });
+  const query = `
+    SELECT 
+      c.id, c.user_id,, 
+      i.id AS item_id, i.name AS item_name, i.description, i.slot, i.type, i.hp, i.atk, i.spd, i.mag, i.range
+    FROM item_collections c
+    LEFT JOIN items i ON c.item_id = i.id
+    WHERE c.user_id = $1
+  `;
+
+  try {
+    const result = await db.query(query, [userId]);
+    return result.rows;
+  } catch (error) {
+    console.error("Error fetching user equipments:", error);
+    throw error;
+  }
 };
 
 const getEquippedItems = async (req, res) => {
   const { user_id } = req.params;
 
+  const query = `
+    SELECT 
+      c.id, c.user_id, c.equipped, 
+      i.id AS item_id, i.name AS item_name, i.description, i.slot, i.type, i.hp, i.atk, i.spd, i.mag, i.range
+    FROM item_collections c
+    LEFT JOIN items i ON c.item_id = i.id
+    WHERE c.user_id = $1
+  `;
+
   try {
-    const ownedItems = await Equipment.findAll({
-      where: { user_id: user_id },
-      include: [{ model: Item }],
-    });
-    res.status(200).json(ownedItems);
+    const result = await db.query(query, [user_id]);
+    res.status(200).json(result.rows);
   } catch (error) {
     console.error(
-      "Erreur lors de la récupération des equipements possédées:",
+      "Erreur lors de la récupération des équipements possédés:",
       error
     );
     res.status(500).json({ error: "Erreur interne du serveur" });
@@ -31,11 +67,10 @@ const equipmentUpdate = async (req, res) => {
   const { fighterId, equipmentSlots } = req.body;
 
   try {
-    const fighter = await Fighter.findByPk(fighterId, {
-      include: [{ model: Equipment, include: [Item] }],
-    });
+    const fighterQuery = `SELECT * FROM fighters WHERE id = $1`;
+    const fighterResult = await db.query(fighterQuery, [fighterId]);
 
-    if (!fighter) {
+    if (fighterResult.rowCount === 0) {
       return res.status(404).json({ error: "Combattant non trouvé" });
     }
 
@@ -43,22 +78,22 @@ const equipmentUpdate = async (req, res) => {
       const item = equipmentSlots[slot];
 
       if (item.equipped === fighterId) {
-        await Equipment.update(
-          { equipped: fighterId },
-          {
-            where: {
-              id: item.id,
-            },
-          }
+        await db.query(
+          `
+          UPDATE item_collections
+          SET equipped = $1
+          WHERE id = $2
+          `,
+          [fighterId, item.id]
         );
       } else {
-        await Equipment.update(
-          { equipped: null },
-          {
-            where: {
-              id: item.id,
-            },
-          }
+        await db.query(
+          `
+          UPDATE item_collections
+          SET equipped = NULL
+          WHERE id = $1
+          `,
+          [item.id]
         );
       }
     }
@@ -74,4 +109,5 @@ module.exports = {
   getUserEquipments,
   getEquippedItems,
   equipmentUpdate,
+  getFighterEquipment,
 };

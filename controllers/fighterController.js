@@ -1,106 +1,36 @@
-const Fighter = require("../models/fighter/Fighter");
-const Stats = require("../models/fighter/Stats");
-const Visuals = require("../models/fighter/Visuals");
-const { Op } = require("sequelize");
-const { getDeckIncludeOptions } = require("./cardController");
-const Equipment = require("../models/equipment/Equipment");
-const Item = require("../models/equipment/Item");
-const sequelize = require("../db");
-
-const getFighterIncludeOptions = () => {
-  return [
-    {
-      model: Visuals,
-      attributes: [
-        "skin_color",
-        "hair_type",
-        "hair_color",
-        "eyes_type",
-        "eyes_color",
-        "mouth_type",
-      ],
-      limit: 1,
-    },
-    {
-      model: Stats,
-      attributes: [
-        "hp",
-        "atk",
-        "vit",
-        "mag",
-        "level",
-        "experience",
-        "xp_max",
-        "attribute_points",
-      ],
-      limit: 1,
-    },
-    getDeckIncludeOptions(),
-  ];
-};
+const db = require("../db");
 
 const seekFighters = async (req, res) => {
   const { fighter_id } = req.body;
 
   try {
-    const allFighters = await Fighter.findAll({
-      where: {
-        id: { [Op.ne]: fighter_id },
-      },
-      attributes: ["id", "name"],
+    // Récupérer tous les combattants sauf celui spécifié
+    const allFightersResult = await db.query(
+      `
+      SELECT 
+        f.id, 
+        f.name,
+        v.skin_color, v.hair_type, v.hair_color, v.eyes_type, v.eyes_color, v.mouth_type,
+        s.hp, s.atk, s.spd, s.mag, s.level, s.experience, s.xp_max, s.attribute_points,
+        e.id AS equipment_id, e.item_id, e.equipped,
+        i.name AS item_name, i.description AS item_description, i.slot, i.type, i.hp AS item_hp, 
+        i.atk AS item_atk, i.spd AS item_spd, i.mag AS item_mag, i.range AS item_range
+      FROM fighters f
+      LEFT JOIN visuals v ON v.fighter_id = f.id
+      LEFT JOIN stats s ON s.fighter_id = f.id
+      LEFT JOIN equipments e ON e.equipped = f.id
+      LEFT JOIN items i ON i.id = e.item_id
+      WHERE f.id != $1
+    `,
+      [fighter_id]
+    );
 
-      include: [
-        {
-          model: Visuals,
-          attributes: [
-            "skin_color",
-            "hair_type",
-            "hair_color",
-            "eyes_type",
-            "eyes_color",
-            "mouth_type",
-          ],
-          limit: 1,
-        },
-        {
-          model: Stats,
-          attributes: [
-            "hp",
-            "atk",
-            "vit",
-            "mag",
-            "level",
-            "experience",
-            "xp_max",
-            "attribute_points",
-          ],
-          limit: 1,
-        },
-        {
-          model: Equipment,
-          attributes: ["id", "item_id", "equipped"],
-          include: [
-            {
-              model: Item,
-              attributes: [
-                "name",
-                "description",
-                "slot",
-                "type",
-                "hp",
-                "atk",
-                "vit",
-                "mag",
-                "range",
-              ],
-            },
-          ],
-        },
-        getDeckIncludeOptions(),
-      ],
-    });
-    const shuffledFighters = allFighters.sort(() => 0.5 - Math.random());
+    // Mélanger les combattants et en sélectionner 6 au hasard
+    const shuffledFighters = allFightersResult.rows.sort(
+      () => 0.5 - Math.random()
+    );
     const selectedFighters = shuffledFighters.slice(0, 6);
+
     res.status(200).json(selectedFighters);
   } catch (error) {
     console.error("Error fetching fighters:", error);
@@ -122,40 +52,46 @@ const createFighter = async (req, res) => {
   } = req.body;
 
   try {
-    const result = await sequelize.transaction(async (t) => {
-      const newFighter = await Fighter.create(
-        {
-          name: fighterName,
-          user_id: req.user.id,
-        },
-        { transaction: t }
-      );
+    // Démarrer une transaction
+    await db.query("BEGIN");
 
-      await Visuals.create(
-        {
-          fighter_id: newFighter.id,
-          skin_color: skinColor,
-          hair_type: hairType,
-          hair_color: hairColor,
-          eyes_type: eyesType,
-          eyes_color: eyesColor,
-          mouth_type: mouthType,
-        },
-        { transaction: t }
-      );
+    // Insérer le combattant
+    const fighterResult = await db.query(
+      `INSERT INTO fighters (name, user_id) VALUES ($1, $2) RETURNING id`,
+      [fighterName, req.user.id]
+    );
+    const newFighterId = fighterResult.rows[0].id;
 
-      await Stats.create(
-        {
-          fighter_id: newFighter.id,
-        },
-        { transaction: t }
-      );
+    // Insérer les détails visuels
+    await db.query(
+      `
+      INSERT INTO visuals 
+      (fighter_id, skin_color, hair_type, hair_color, eyes_type, eyes_color, mouth_type) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `,
+      [
+        newFighterId,
+        skinColor,
+        hairType,
+        hairColor,
+        eyesType,
+        eyesColor,
+        mouthType,
+      ]
+    );
 
-      return newFighter;
-    });
+    // Insérer les statistiques par défaut
+    await db.query(`INSERT INTO stats (fighter_id) VALUES ($1)`, [
+      newFighterId,
+    ]);
 
-    res.status(201).json(result);
+    // Confirmer la transaction
+    await db.query("COMMIT");
+
+    res.status(201).json({ id: newFighterId, name: fighterName });
   } catch (error) {
+    // Annuler la transaction en cas d'erreur
+    await db.query("ROLLBACK");
     console.error("Failed to create fighter:", error);
     res
       .status(500)
@@ -164,7 +100,6 @@ const createFighter = async (req, res) => {
 };
 
 module.exports = {
-  getFighterIncludeOptions,
   createFighter,
   seekFighters,
 };

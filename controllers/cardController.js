@@ -1,54 +1,92 @@
-const CardCollection = require("../models/cards/CardCollection");
-const Deck = require("../models/cards/Deck");
-const Card = require("../models/cards/Card");
-const sequelize = require("../db");
+const db = require("../db");
+const { toCamelCase } = require("../utils/toCamelCase");
 
-const getDeckIncludeOptions = () => {
-  return {
-    model: Deck,
-    include: [{ model: Card, as: "card" }],
-    attributes: ["slot", "card_id"],
-  };
-};
-
-async function createInitialCollection(newUser, transaction) {
+async function createInitialCollection(newUser, transactionClient) {
   const initialCardIds = [19, 20, 24];
 
-  await Promise.all(
-    initialCardIds.map(async (cardId) => {
-      await CardCollection.create(
-        {
-          user_id: newUser.id,
-          card_id: cardId,
-        },
-        { transaction }
+  try {
+    for (const cardId of initialCardIds) {
+      await transactionClient.query(
+        `
+        INSERT INTO card_collections (user_id, card_id)
+        VALUES ($1, $2);
+        `,
+        [newUser.id, cardId]
       );
-    })
-  );
+    }
+  } catch (error) {
+    console.error(
+      "Erreur lors de la création de la collection initiale :",
+      error
+    );
+    throw error;
+  }
 }
 
 const getAllCards = async (req, res) => {
   try {
-    const cards = await Card.findAll();
-    res.status(200).json(cards);
+    const result = await db.query(`
+      SELECT * FROM cards;
+    `);
+    res.status(200).json(result.rows);
   } catch (error) {
-    console.error("Erreur lors de la récupération des cartes:", error);
+    console.error("Erreur lors de la récupération des cartes :", error);
     res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+};
+
+const getDeckForFighter = async (fighterId) => {
+  try {
+    const result = await db.query(
+      `
+      SELECT d.slot, c.*
+      FROM decks d
+      JOIN cards c ON d.card_id = c.id
+      WHERE d.fighter_id = $1;
+      `,
+      [fighterId]
+    );
+
+    const formattedResult = result.rows.map((row) => ({
+      ...row,
+      fighter_id: undefined,
+      card_id: undefined,
+      quantity: 0,
+      context: "deck",
+    }));
+
+    return toCamelCase(formattedResult);
+  } catch (error) {
+    console.error("Erreur lors de la récupération du deck :", error);
+    throw new Error("Error fetching deck for fighter");
   }
 };
 
 const getOwnedCards = async (req, res) => {
   const { id } = req.user;
-  console.log(id);
+
   try {
-    const ownedCards = await CardCollection.findAll({
-      where: { user_id: id },
-      include: [{ model: Card }],
-    });
-    res.status(200).json(ownedCards);
+    const result = await db.query(
+      `
+      SELECT cc.quantity, c.*
+      FROM card_collections cc
+      JOIN cards c ON cc.card_id = c.id
+      WHERE cc.user_id = $1;
+      `,
+      [id]
+    );
+    const formattedResult = result.rows.map((row) => ({
+      ...row,
+      fighter_id: undefined,
+      card_id: undefined,
+      slot: -1,
+      context: "collection",
+    }));
+    const cards = toCamelCase(formattedResult);
+    res.status(200).json(cards);
   } catch (error) {
     console.error(
-      "Erreur lors de la récupération des cartes possédées:",
+      "Erreur lors de la récupération des cartes possédées :",
       error
     );
     res.status(500).json({ error: "Erreur interne du serveur" });
@@ -63,76 +101,94 @@ const getEquippedCard = async (req, res) => {
   }
 
   try {
-    const equippedCards = await Deck.findAll({
-      where: { fighter_id },
-      include: [{ model: Card, as: "card" }],
-    });
+    const result = await db.query(
+      `
+      SELECT d.slot, c.*
+      FROM decks d
+      JOIN cards c ON d.card_id = c.id
+      WHERE d.fighter_id = $1;
+      `,
+      [fighter_id]
+    );
+    const formattedResult = result.rows.map((row) => ({
+      ...row,
+      fighter_id: undefined,
+      card_id: undefined,
+      quantity: 0,
+    }));
+    const equippedCards = toCamelCase(formattedResult);
 
     res.status(200).json(equippedCards);
   } catch (error) {
-    console.error("Erreur lors de la récupération des cartes équipées:", error);
+    console.error(
+      "Erreur lors de la récupération des cartes équipées :",
+      error
+    );
     res.status(500).json({ error: "Erreur interne du serveur" });
   }
 };
 
 const postEquippedCard = async (req, res) => {
+  const { collection, equippedCards, fighter_id, user_id } = req.body;
+
+  if (!Array.isArray(equippedCards) || !Array.isArray(collection)) {
+    return res.status(400).json({ error: "Invalid input data" });
+  }
+
+  const client = await db.connect();
+
   try {
-    const { equippedCards, fighter_id, user_id } = req.body;
-    const transaction = await sequelize.transaction();
+    await client.query("BEGIN");
 
-    if (!Array.isArray(equippedCards)) {
-      return res.status(400).json({ error: "Invalid equipped cards data" });
-    }
-    console.log(req.user_id);
-    await CardCollection.update(
-      { equipped: 0 },
-      { where: { user_id: user_id }, transaction }
-    );
+    await client.query(`DELETE FROM card_collections WHERE user_id = $1;`, [
+      user_id,
+    ]);
 
-    await Promise.all(
-      equippedCards.map(async (card) => {
-        await CardCollection.update(
-          { equipped: 1 },
-          {
-            where: {
-              user_id: req.user.id,
-              card_id: card.card.id,
-            },
-            transaction,
-          }
-        );
-      })
-    );
-
-    const newEquippedCards = equippedCards.map((card) => ({
-      fighter_id: fighter_id,
-      slot: card.slot,
-      card_id: card.card.id,
-    }));
-    console.log(newEquippedCards);
-    await Deck.destroy({
-      where: { fighter_id },
-      transaction,
+    const collectionInsertPromises = collection.map((card) => {
+      return client.query(
+        `
+        INSERT INTO card_collections (user_id, card_id, quantity)
+        VALUES ($1, $2, $3);
+        `,
+        [user_id, card.id, 1]
+      );
     });
+    await Promise.all(collectionInsertPromises);
 
-    await Deck.bulkCreate(newEquippedCards, { transaction });
+    await client.query(`DELETE FROM decks WHERE fighter_id = $1;`, [
+      fighter_id,
+    ]);
 
-    await transaction.commit();
+    const deckInsertPromises = equippedCards.map((card, index) => {
+      return client.query(
+        `
+        INSERT INTO decks (fighter_id, slot, card_id)
+        VALUES ($1, $2, $3);
+        `,
+        [fighter_id, index, card.id]
+      );
+    });
+    await Promise.all(deckInsertPromises);
 
-    res.status(200).json({ message: "Equipped cards saved successfully" });
-  } catch (error) {
-    console.error("Erreur durant la validation du deck", error);
+    await client.query("COMMIT");
+
     res
-      .status(500)
-      .json({ error: "An error occurred while saving equipped cards" });
+      .status(200)
+      .json({ message: "Collection and deck updated successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Erreur durant la mise à jour :", error);
+    res.status(500).json({ error: "An error occurred while updating data" });
+  } finally {
+    client.release();
   }
 };
 
 module.exports = {
-  getDeckIncludeOptions,
   getAllCards,
   getOwnedCards,
   getEquippedCard,
   postEquippedCard,
   createInitialCollection,
+  getDeckForFighter,
 };

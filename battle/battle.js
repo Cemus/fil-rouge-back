@@ -118,14 +118,14 @@ const executeCombat = async (fighter1, fighter2, seed) => {
 };
 
 const getTurnOrder = (fighter1, fighter2, seed) => {
-  const calculateInitiative = (vit, fighter) => {
+  const calculateInitiative = (spd, fighter) => {
     const rng = seedrandom(seed + fighter.id);
     const randomMultiplier = rng() * (1.125 - 0.875 + 0.875);
-    return Math.floor(vit * randomMultiplier);
+    return Math.floor(spd * randomMultiplier);
   };
 
-  const fighter1Initiative = calculateInitiative(fighter1.stats.vit, fighter1);
-  const fighter2Initiative = calculateInitiative(fighter2.stats.vit, fighter2);
+  const fighter1Initiative = calculateInitiative(fighter1.stats.spd, fighter1);
+  const fighter2Initiative = calculateInitiative(fighter2.stats.spd, fighter2);
 
   return fighter1Initiative >= fighter2Initiative
     ? { first: fighter1, second: fighter2 }

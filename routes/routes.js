@@ -39,7 +39,7 @@ router.post("/create-fighter", authMiddleware, createFighter);
 //Card Routes
 router.get("/all-cards", authMiddleware, getAllCards);
 router.get("/owned-cards", authMiddleware, getOwnedCards);
-router.post("/equipped-cards", authMiddleware, postEquippedCard);
+router.post("/update-cards", authMiddleware, postEquippedCard);
 router.get("/equipped-cards/:fighter_id", authMiddleware, getEquippedCard);
 
 //Equipment Routes
