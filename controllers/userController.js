@@ -2,10 +2,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 const { createInitialCollection } = require("./cardController");
-const { getFighterEquipment } = require("./equipmentController");
-const { getDeckForFighter } = require("./cardController");
-const { getVisualsForFighter } = require("./visualsController");
-const { getStatsForFighter } = require("./statsController");
+const { getFighter } = require("./fighterController");
+const { getCardCollection } = require("./cardController");
+const { getUserEquipments } = require("./equipmentController");
 
 const register = async (req, res) => {
   const { username, password } = req.body;
@@ -91,7 +90,7 @@ const getUser = async (req, res) => {
     const userId = req.user.id;
 
     const userResult = await db.query(
-      `SELECT id, username FROM users WHERE id = $1`,
+      `SELECT id, username, currency FROM users WHERE id = $1`,
       [userId]
     );
 
@@ -101,31 +100,14 @@ const getUser = async (req, res) => {
 
     const user = userResult.rows[0];
 
-    const fightersResult = await db.query(
-      `SELECT * FROM fighters WHERE user_id = $1`,
-      [userId]
-    );
-
-    const fighters = fightersResult.rows;
-
-    const fightersWithDetails = await Promise.all(
-      fighters.map(async (fighter) => {
-        const fighterDeck = await getDeckForFighter(fighter.id);
-        const fighterEquipment = await getFighterEquipment(fighter.id);
-        const fighterVisuals = await getVisualsForFighter(fighter.id);
-        const fighterStats = await getStatsForFighter(fighter.id);
-        return {
-          ...fighter,
-          equipment: fighterEquipment,
-          deck: fighterDeck,
-          visuals: fighterVisuals,
-          stats: fighterStats,
-        };
-      })
-    );
+    const fightersWithDetails = await getFighter(userId);
+    const cardCollection = await getCardCollection(userId);
+    const equipmentCollection = await getUserEquipments(userId);
 
     const userProfile = {
       ...user,
+      cardCollection: cardCollection,
+      equipmentCollection: equipmentCollection,
       fighters: fightersWithDetails,
     };
 

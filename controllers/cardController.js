@@ -62,9 +62,7 @@ const getDeckForFighter = async (fighterId) => {
   }
 };
 
-const getOwnedCards = async (req, res) => {
-  const { id } = req.user;
-
+const getCardCollection = async (userId) => {
   try {
     const result = await db.query(
       `
@@ -73,7 +71,7 @@ const getOwnedCards = async (req, res) => {
       JOIN cards c ON cc.card_id = c.id
       WHERE cc.user_id = $1;
       `,
-      [id]
+      [userId]
     );
     const formattedResult = result.rows.map((row) => ({
       ...row,
@@ -82,8 +80,18 @@ const getOwnedCards = async (req, res) => {
       slot: -1,
       context: "collection",
     }));
-    const cards = toCamelCase(formattedResult);
-    res.status(200).json(cards);
+    return toCamelCase(formattedResult);
+  } catch (error) {
+    console.error("Erreur lors de la récupération de la collection :", error);
+  }
+};
+
+const getOwnedCards = async (req, res) => {
+  const { id } = req.user;
+
+  try {
+    const collection = await getCardCollection(id);
+    res.status(200).json(collection);
   } catch (error) {
     console.error(
       "Erreur lors de la récupération des cartes possédées :",
@@ -150,7 +158,7 @@ const postEquippedCard = async (req, res) => {
         INSERT INTO card_collections (user_id, card_id, quantity)
         VALUES ($1, $2, $3);
         `,
-        [user_id, card.id, 1]
+        [user_id, card.id, card.quantity]
       );
     });
     await Promise.all(collectionInsertPromises);
@@ -159,19 +167,18 @@ const postEquippedCard = async (req, res) => {
       fighter_id,
     ]);
 
-    const deckInsertPromises = equippedCards.map((card, index) => {
+    const deckInsertPromises = equippedCards.map((card) => {
       return client.query(
         `
         INSERT INTO decks (fighter_id, slot, card_id)
         VALUES ($1, $2, $3);
         `,
-        [fighter_id, index, card.id]
+        [fighter_id, card.slot, card.id]
       );
     });
     await Promise.all(deckInsertPromises);
 
     await client.query("COMMIT");
-
     res
       .status(200)
       .json({ message: "Collection and deck updated successfully" });
@@ -191,4 +198,5 @@ module.exports = {
   postEquippedCard,
   createInitialCollection,
   getDeckForFighter,
+  getCardCollection,
 };

@@ -1,10 +1,43 @@
 const db = require("../db");
+const { getFighterEquipment } = require("./equipmentController");
+const { getDeckForFighter } = require("./cardController");
+const { getVisualsForFighter } = require("./visualsController");
+const { getStatsForFighter } = require("./statsController");
+
+const getFighter = async (userId) => {
+  try {
+    const fightersResult = await db.query(
+      `SELECT * FROM fighters WHERE user_id = $1`,
+      [userId]
+    );
+
+    const fighters = fightersResult.rows;
+
+    const fightersWithDetails = await Promise.all(
+      fighters.map(async (fighter) => {
+        const fighterDeck = await getDeckForFighter(fighter.id);
+        const fighterEquipment = await getFighterEquipment(fighter.id);
+        const fighterVisuals = await getVisualsForFighter(fighter.id);
+        const fighterStats = await getStatsForFighter(fighter.id);
+        return {
+          ...fighter,
+          equipment: fighterEquipment,
+          deck: fighterDeck,
+          visuals: fighterVisuals,
+          stats: fighterStats,
+        };
+      })
+    );
+    return fightersWithDetails;
+  } catch (error) {
+    console.error("Erreur durant la récupération du combattant :", error);
+  }
+};
 
 const seekFighters = async (req, res) => {
   const { fighter_id } = req.body;
 
   try {
-    // Récupérer tous les combattants sauf celui spécifié
     const allFightersResult = await db.query(
       `
       SELECT 
@@ -25,7 +58,6 @@ const seekFighters = async (req, res) => {
       [fighter_id]
     );
 
-    // Mélanger les combattants et en sélectionner 6 au hasard
     const shuffledFighters = allFightersResult.rows.sort(
       () => 0.5 - Math.random()
     );
@@ -33,7 +65,7 @@ const seekFighters = async (req, res) => {
 
     res.status(200).json(selectedFighters);
   } catch (error) {
-    console.error("Error fetching fighters:", error);
+    console.error("Erreur de récupération des combattants:", error);
     res
       .status(500)
       .json({ error: "An error occurred while fetching fighters" });
@@ -52,17 +84,14 @@ const createFighter = async (req, res) => {
   } = req.body;
 
   try {
-    // Démarrer une transaction
     await db.query("BEGIN");
 
-    // Insérer le combattant
     const fighterResult = await db.query(
       `INSERT INTO fighters (name, user_id) VALUES ($1, $2) RETURNING id`,
       [fighterName, req.user.id]
     );
     const newFighterId = fighterResult.rows[0].id;
 
-    // Insérer les détails visuels
     await db.query(
       `
       INSERT INTO visuals 
@@ -80,19 +109,16 @@ const createFighter = async (req, res) => {
       ]
     );
 
-    // Insérer les statistiques par défaut
     await db.query(`INSERT INTO stats (fighter_id) VALUES ($1)`, [
       newFighterId,
     ]);
 
-    // Confirmer la transaction
     await db.query("COMMIT");
 
     res.status(201).json({ id: newFighterId, name: fighterName });
   } catch (error) {
-    // Annuler la transaction en cas d'erreur
     await db.query("ROLLBACK");
-    console.error("Failed to create fighter:", error);
+    console.error("Erreur de création du combattant :", error);
     res
       .status(500)
       .json({ error: "An error occurred while creating the fighter" });
@@ -102,4 +128,5 @@ const createFighter = async (req, res) => {
 module.exports = {
   createFighter,
   seekFighters,
+  getFighter,
 };
