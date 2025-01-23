@@ -10,13 +10,13 @@ const executeCombat = async (fighter1, fighter2, seed) => {
   let turn = 0;
   let combatLog = [];
 
-  if (!Array.isArray(fighter1.decks) || !Array.isArray(fighter2.decks)) {
+  if (!Array.isArray(fighter1.deck) || !Array.isArray(fighter2.deck)) {
     throw new Error("Invalid deck data");
   }
 
   if (
-    !Array.isArray(fighter1.equipments) ||
-    !Array.isArray(fighter2.equipments)
+    !Array.isArray(fighter1.equipment) ||
+    !Array.isArray(fighter2.equipment)
   ) {
     throw new Error("Invalid equipment data");
   }
@@ -24,14 +24,14 @@ const executeCombat = async (fighter1, fighter2, seed) => {
   let fighter1Range = 0;
   let fighter2Range = 0;
 
-  for (const equipment of fighter1.equipments) {
+  for (const equipment of fighter1.equipment) {
     if (equipment.item.slot === "weapon") {
       fighter1Range = equipment.item.range;
       break;
     }
   }
 
-  for (const equipment of fighter2.equipments) {
+  for (const equipment of fighter2.equipment) {
     if (equipment.item.slot === "weapon") {
       fighter2Range = equipment.item.range;
       break;
