@@ -36,7 +36,7 @@ const saveCombatResult = async (req, res) => {
     winner,
     loser,
     seed,
-    combatLog,
+    JSON.stringify(combatLog),
   ];
 
   try {
