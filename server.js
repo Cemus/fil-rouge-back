@@ -15,6 +15,10 @@ app.use(
 app.use(bodyParser.json());
 app.use("/api", routes);
 
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
+
 app.listen(PORT, () => {
   console.log(` ┌(◉ ͜ʖ◉)つ < Serveur lancé : http://localhost:${PORT} )`);
 });
