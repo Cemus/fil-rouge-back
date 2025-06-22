@@ -5,11 +5,11 @@ const authMiddleware = (req, res, next) => {
   const token = authHeader.replace("Bearer ", "");
 
   if (!authHeader) {
-    return res.status(401).json({ error: "Accès refusé, token manquant" });
+    return res.status(401).json({ error: "Access denied, token missing" });
   }
 
   if (!token) {
-    return res.status(401).json({ error: "Accès refusé, token manquant" });
+    return res.status(401).json({ error: "Access denied, token missing" });
   }
 
   try {
@@ -17,7 +17,7 @@ const authMiddleware = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ error: "Token invalide" });
+    res.status(401).json({ error: "Invalid token" });
   }
 };
 

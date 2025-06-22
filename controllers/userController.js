@@ -38,9 +38,7 @@ const register = async (req, res) => {
     console.error("Erreur lors de l'inscription :", error);
 
     const errorMessage =
-      error.code === "23505"
-        ? "Username is already in use"
-        : "An error occurred";
+      error.code === "23505" ? "Username already in use" : "An error occurred";
 
     res.status(400).json({ error: errorMessage });
   }

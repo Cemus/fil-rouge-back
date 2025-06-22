@@ -14,42 +14,19 @@ const executeCombat = async (fighter1, fighter2, seed) => {
     throw new Error("Invalid deck data");
   }
 
-  let fighter1Range = 0;
-  let fighter2Range = 0;
+  let fighter1Range = 1;
+  let fighter2Range = 1;
+  console.log("fighter", fighter1);
+  console.log("eq", fighter1.equipment);
+  console.log("wea", fighter1.equipment.weapon);
 
-  for (const [key, value] of Object.entries(fighter1.equipment)) {
-    console.log(`${key}: ${value}`);
-    if (key === "weapon") {
-      if (value) {
-        fighter1Range = value.range;
-      }
-      break;
-    }
+  if (fighter1.equipment.weapon) {
+    fighter1Range = fighter1.equipment.weapon.range;
   }
 
-  for (const [key, value] of Object.entries(fighter2.equipment)) {
-    console.log(`${key}: ${value}`);
-    if (key === "weapon") {
-      if (value) {
-        fighter2Range = value.range;
-      }
-      break;
-    }
+  if (fighter2.equipment.weapon) {
+    fighter2Range = fighter2.equipment.weapon.range;
   }
-
-  /*   for (const equipment of fighter1.equipment) {
-    if (equipment.item.slot === "weapon") {
-      fighter1Range = equipment.item.range;
-      break;
-    }
-  }
-
-  for (const equipment of fighter2.equipment) {
-    if (equipment.item.slot === "weapon") {
-      fighter2Range = equipment.item.range;
-      break;
-    }
-  } */
 
   let state = {
     fighter1Health,
@@ -68,7 +45,7 @@ const executeCombat = async (fighter1, fighter2, seed) => {
   ) {
     const currentSeed = `${seed}-${turn}`;
 
-    const { first, second } = getTurnOrder(fighter1, fighter2);
+    const { first, second } = getTurnOrder(fighter1, fighter2, currentSeed);
 
     const players = [
       {
@@ -84,12 +61,11 @@ const executeCombat = async (fighter1, fighter2, seed) => {
     ];
 
     for (const { fighter, isPlayer, deck } of players) {
+      console.log("FIGHTER", fighter);
       console.log("DECK", deck);
       let currentCard = await getValidCard(deck, isPlayer, state);
-      console.log("CURRENT CARD", currentCard);
       if (currentCard) {
         for (const effect of currentCard.effects || []) {
-          console.log("EFFECT", effect);
           state = await applyCardEffects(
             effect,
             isPlayer,
@@ -129,7 +105,6 @@ const executeCombat = async (fighter1, fighter2, seed) => {
     state.fighter1Health > state.fighter2Health ? fighter1.id : fighter2.id;
   const loser =
     state.fighter1Health > state.fighter2Health ? fighter2.id : fighter1.id;
-  console.log("RESULSTS", fighter1Id, fighter2Id, winner, loser, combatLog);
   //Penser au cas invalide de combatlog vide
   return { fighter1Id, fighter2Id, winner, loser, combatLog };
 };
@@ -151,21 +126,10 @@ const getTurnOrder = (fighter1, fighter2, seed) => {
 
 const getValidCard = (deck, isfighter, state) => {
   for (const cardData of deck) {
-    console.log("CARDDATA", cardData);
-    console.log(
-      "TEST",
-      cardData.conditions.every((condition) => {
-        console.log("condition", condition);
-        return areConditionsMet(condition, isfighter, state);
-      })
-    );
     const allConditionsMet = cardData.conditions.every((condition) => {
-      console.log("condition", condition);
       return areConditionsMet(condition, isfighter, state);
     });
-    console.log("ALLCONDMET,", allConditionsMet);
     if (allConditionsMet) {
-      console.log("CARTE MAGIQUE");
       return cardData;
     }
   }
@@ -244,14 +208,7 @@ const areConditionsMet = (condition, isfighter, state) => {
       const otherFighterPosition = isfighter
         ? state.fighter2Position
         : state.fighter1Position;
-      console.log(
-        "CAN MOVE",
-        canFighterMove(
-          currentFighterPosition,
-          otherFighterPosition,
-          condition.value
-        )
-      );
+
       return canFighterMove(
         currentFighterPosition,
         otherFighterPosition,
@@ -265,7 +222,6 @@ const areConditionsMet = (condition, isfighter, state) => {
 
 const applyCardEffects = (effect, isfighter, state, seed, currentFighter) => {
   let newState = { ...state };
-  console.log("EFFECT", effect);
   switch (effect.type) {
     case "damage":
       const damage = calculateDamage(effect.value, currentFighter, seed);
@@ -371,12 +327,7 @@ const canFighterMove = (fighter1Position, fighter2Position, distance) => {
   const respectAreaLimit = newPosition >= -9 && newPosition <= 9;
 
   if (!respectAreaLimit) return false;
-  console.log(
-    "CAN MOVE",
-    isOnLeftSide
-      ? newPosition < fighter2Position
-      : newPosition > fighter2Position
-  );
+
   return isOnLeftSide
     ? newPosition < fighter2Position
     : newPosition > fighter2Position;
