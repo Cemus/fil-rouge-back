@@ -1,10 +1,16 @@
-const db = require("../db");
-const { getFighterEquipment } = require("./equipmentController");
-const { getDeckForFighter } = require("./cardController");
-const { getVisualsForFighter } = require("./visualsController");
-const { getStatsForFighter } = require("./statsController");
+import { Request, Response } from "express";
+import { Fighter } from "../types/types";
+import { db } from "../db";
+import { getFighterEquipment } from "./equipmentController";
+import { getDeckForFighter } from "./cardController";
+import { getVisualsForFighter } from "./visualsController";
+import { getStatsForFighter } from "./statsController";
 
-const getFighter = async (userId) => {
+export interface CustomRequest extends Request {
+  user?: { id: number };
+}
+
+export const getFighter = async (userId: number) => {
   try {
     const fightersResult = await db.query(
       `SELECT * FROM fighters WHERE user_id = $1`,
@@ -14,7 +20,7 @@ const getFighter = async (userId) => {
     const fighters = fightersResult.rows;
 
     const fightersWithDetails = await Promise.all(
-      fighters.map(async (fighter) => {
+      fighters.map(async (fighter: Fighter) => {
         const fighterDeck = await getDeckForFighter(fighter.id);
         const fighterEquipment = await getFighterEquipment(fighter.id);
         const fighterVisuals = await getVisualsForFighter(fighter.id);
@@ -34,7 +40,7 @@ const getFighter = async (userId) => {
   }
 };
 
-const seekFighters = async (req, res) => {
+export const seekFighters = async (req: Request, res: Response) => {
   const { fighter_id } = req.body;
 
   try {
@@ -46,7 +52,7 @@ const seekFighters = async (req, res) => {
     const fighters = fightersResult.rows;
 
     const fightersWithDetails = await Promise.all(
-      fighters.map(async (fighter) => {
+      fighters.map(async (fighter: Fighter) => {
         console.log(fighter);
         const fighterDeck = await getDeckForFighter(fighter.id);
         const fighterEquipment = await getFighterEquipment(fighter.id);
@@ -71,7 +77,10 @@ const seekFighters = async (req, res) => {
   }
 };
 
-const createFighter = async (req, res) => {
+export const createFighter = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
   const {
     fighterName,
     skinColor,
@@ -82,12 +91,17 @@ const createFighter = async (req, res) => {
     mouthType,
   } = req.body;
 
+  const { id } = req.user || {};
+
   try {
     await db.query("BEGIN");
 
+    if (!id) {
+      throw new Error("No user id sent.");
+    }
     const fighterResult = await db.query(
       `INSERT INTO fighters (name, user_id) VALUES ($1, $2) RETURNING id`,
-      [fighterName, req.user.id]
+      [fighterName, id]
     );
     const newFighterId = fighterResult.rows[0].id;
 
@@ -122,10 +136,4 @@ const createFighter = async (req, res) => {
       .status(500)
       .json({ error: "An error occurred while creating the fighter" });
   }
-};
-
-module.exports = {
-  createFighter,
-  seekFighters,
-  getFighter,
 };

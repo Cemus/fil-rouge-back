@@ -1,30 +1,28 @@
-const express = require("express");
-const router = express.Router();
-const {
+import express from "express";
+import {
   login,
   register,
   getUser,
   getAllUsers,
-} = require("../controllers/userController");
-const {
-  createFighter,
-  seekFighters,
-} = require("../controllers/fighterController");
-const {
+} from "../controllers/userController";
+import { createFighter, seekFighters } from "../controllers/fighterController";
+import {
   getAllCards,
   getEquippedCard,
   getOwnedCards,
   postEquippedCard,
-} = require("../controllers/cardController");
-const {
+} from "../controllers/cardController";
+import {
   getEquippedItems,
   equipmentUpdate,
-} = require("../controllers/equipmentController");
-const {
+} from "../controllers/equipmentController";
+import {
   saveCombatResult,
   getUserCombatHistory,
-} = require("../controllers/combatController");
-const authMiddleware = require("../middleware/authMiddleware");
+} from "../controllers/combatController";
+import authMiddleware from "../middleware/authMiddleware";
+
+const router = express.Router();
 
 // User routes
 router.post("/register", register);
@@ -50,4 +48,4 @@ router.post("/equipment/update", authMiddleware, equipmentUpdate);
 router.post("/combat-result", authMiddleware, saveCombatResult);
 router.get("/combat-history/:fighter_id", authMiddleware, getUserCombatHistory);
 
-module.exports = router;
+export default router;

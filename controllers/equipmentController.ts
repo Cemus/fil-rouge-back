@@ -1,7 +1,8 @@
-const db = require("../db");
-const { toCamelCase } = require("../utils/toCamelCase");
+import { Request, Response } from "express";
+import { db } from "../db";
+import { toCamelCase } from "../utils/toCamelCase";
 
-const getFighterEquipment = async (fighterId) => {
+export const getFighterEquipment = async (fighterId: number) => {
   try {
     const result = await db.query(
       `SELECT 
@@ -33,7 +34,7 @@ const getFighterEquipment = async (fighterId) => {
   }
 };
 
-const getUserEquipments = async (userId) => {
+export const getUserEquipments = async (userId: number) => {
   try {
     const query = `SELECT c.id, c.quantity,
     i.id, i.name, i.description, i.slot, i.type, i.hp, i.atk, i.spd, i.mag, i.range
@@ -54,7 +55,7 @@ const getUserEquipments = async (userId) => {
   }
 };
 
-const getEquippedItems = async (req, res) => {
+export const getEquippedItems = async (req: Request, res: Response) => {
   const { user_id } = req.params;
 
   const query = `
@@ -78,7 +79,10 @@ const getEquippedItems = async (req, res) => {
   }
 };
 
-const equipmentUpdate = async (req, res) => {
+export const equipmentUpdate = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { fighterId, equipmentSlots } = req.body;
   console.log(equipmentSlots);
 
@@ -87,10 +91,10 @@ const equipmentUpdate = async (req, res) => {
     const fighterResult = await db.query(fighterQuery, [fighterId]);
 
     if (fighterResult.rowCount === 0) {
-      return res.status(404).json({ error: "Combattant non trouvé" });
+      res.status(404).json({ error: "Combattant non trouvé" });
     }
 
-    const setClause = [];
+    const setClause: string[] = [];
     const values = [fighterId];
 
     Object.keys(equipmentSlots).forEach((slot, index) => {
@@ -105,8 +109,8 @@ const equipmentUpdate = async (req, res) => {
     });
 
     if (setClause.length === 0) {
-      console.info("Aucun équipement à mettre à jour");
-      return res.status(400).json({ error: "Nothing to update" });
+      console.info("No equipment to update");
+      res.status(400).json({ error: "Nothing to update" });
     }
 
     const query = `
@@ -117,16 +121,9 @@ const equipmentUpdate = async (req, res) => {
 
     await db.query(query, values);
 
-    res.status(200).json({ message: "Équipement mis à jour avec succès" });
+    res.status(200).json({ message: "Equipment updated!" });
   } catch (error) {
-    console.error("Erreur lors de la mise à jour de l'équipement:", error);
-    res.status(500).json({ error: "Erreur interne du serveur" });
+    console.error("Error during the change of equipment:", error);
+    res.status(500).json({ error: "Internal error" });
   }
-};
-
-module.exports = {
-  getUserEquipments,
-  getEquippedItems,
-  equipmentUpdate,
-  getFighterEquipment,
 };

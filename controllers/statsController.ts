@@ -1,7 +1,7 @@
-const db = require("../db");
-const { toCamelCase } = require("../utils/toCamelCase");
+import { toCamelCase } from "../utils/toCamelCase";
+import { db } from "../db";
 
-const getStatsForFighter = async (fighterId) => {
+export const getStatsForFighter = async (fighterId: number) => {
   try {
     const result = await db.query(
       `
@@ -21,5 +21,3 @@ const getStatsForFighter = async (fighterId) => {
     throw new Error("Error fetching stats for fighter");
   }
 };
-
-module.exports = { getStatsForFighter };

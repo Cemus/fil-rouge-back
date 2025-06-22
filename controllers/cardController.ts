@@ -1,7 +1,21 @@
-const db = require("../db");
-const { toCamelCase } = require("../utils/toCamelCase");
+import { db } from "../db";
+import { Request, Response } from "express";
+import { PoolClient } from "pg";
+import { ExtendedRequest, User } from "../types/types";
+import { toCamelCase } from "../utils/toCamelCase";
 
-async function createInitialCollection(newUser, transactionClient) {
+interface Card {
+  id: number;
+  slot?: number;
+  quantity?: number;
+  context?: "deck" | "collection";
+  [key: string]: any;
+}
+
+export async function createInitialCollection(
+  newUser: User,
+  transactionClient: PoolClient
+): Promise<void> {
   const initialCardIds = [19, 20, 24];
 
   try {
@@ -23,11 +37,12 @@ async function createInitialCollection(newUser, transactionClient) {
   }
 }
 
-const getAllCards = async (req, res) => {
+export const getAllCards = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const result = await db.query(`
-      SELECT * FROM cards;
-    `);
+    const result = await db.query(`SELECT * FROM cards;`);
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("Erreur lors de la récupération des cartes :", error);
@@ -35,7 +50,7 @@ const getAllCards = async (req, res) => {
   }
 };
 
-const getDeckForFighter = async (fighterId) => {
+export const getDeckForFighter = async (fighterId: number): Promise<Card[]> => {
   try {
     const result = await db.query(
       `
@@ -47,7 +62,7 @@ const getDeckForFighter = async (fighterId) => {
       [fighterId]
     );
 
-    const formattedResult = result.rows.map((row) => ({
+    const formattedResult = result.rows.map((row: any) => ({
       ...row,
       fighter_id: undefined,
       card_id: undefined,
@@ -55,14 +70,16 @@ const getDeckForFighter = async (fighterId) => {
       context: "deck",
     }));
 
-    return toCamelCase(formattedResult);
+    return toCamelCase(formattedResult) as Card[];
   } catch (error) {
     console.error("Erreur lors de la récupération du deck :", error);
     throw new Error("Error fetching deck for fighter");
   }
 };
 
-const getCardCollection = async (userId) => {
+export const getCardCollection = async (
+  userId: number
+): Promise<void | Card[]> => {
   try {
     const result = await db.query(
       `
@@ -73,21 +90,26 @@ const getCardCollection = async (userId) => {
       `,
       [userId]
     );
-    const formattedResult = result.rows.map((row) => ({
+
+    const formattedResult = result.rows.map((row: any) => ({
       ...row,
       fighter_id: undefined,
       card_id: undefined,
       slot: -1,
       context: "collection",
     }));
-    return toCamelCase(formattedResult);
+
+    return toCamelCase(formattedResult) as Card[];
   } catch (error) {
     console.error("Erreur lors de la récupération de la collection :", error);
   }
 };
 
-const getOwnedCards = async (req, res) => {
-  const { id } = req.user;
+export const getOwnedCards = async (
+  req: Request & { user?: { id: number } },
+  res: Response
+): Promise<void> => {
+  const { id } = req.user!;
 
   try {
     const collection = await getCardCollection(id);
@@ -101,11 +123,14 @@ const getOwnedCards = async (req, res) => {
   }
 };
 
-const getEquippedCard = async (req, res) => {
+export const getEquippedCard = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { fighter_id } = req.params;
 
   if (!fighter_id) {
-    return res.status(400).json({ error: "Fighter ID is required" });
+    res.status(400).json({ error: "Fighter ID is required" });
   }
 
   try {
@@ -118,14 +143,15 @@ const getEquippedCard = async (req, res) => {
       `,
       [fighter_id]
     );
-    const formattedResult = result.rows.map((row) => ({
+
+    const formattedResult = result.rows.map((row: any) => ({
       ...row,
       fighter_id: undefined,
       card_id: undefined,
       quantity: 0,
     }));
-    const equippedCards = toCamelCase(formattedResult);
 
+    const equippedCards = toCamelCase(formattedResult);
     res.status(200).json(equippedCards);
   } catch (error) {
     console.error(
@@ -136,11 +162,14 @@ const getEquippedCard = async (req, res) => {
   }
 };
 
-const postEquippedCard = async (req, res) => {
+export const postEquippedCard = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { collection, equippedCards, fighter_id, user_id } = req.body;
 
   if (!Array.isArray(equippedCards) || !Array.isArray(collection)) {
-    return res.status(400).json({ error: "Invalid input data" });
+    res.status(400).json({ error: "Invalid input data" });
   }
 
   const client = await db.connect();
@@ -152,7 +181,7 @@ const postEquippedCard = async (req, res) => {
       user_id,
     ]);
 
-    const collectionInsertPromises = collection.map((card) => {
+    const collectionInsertPromises = collection.map((card: Card) => {
       return client.query(
         `
         INSERT INTO card_collections (user_id, card_id, quantity)
@@ -167,7 +196,7 @@ const postEquippedCard = async (req, res) => {
       fighter_id,
     ]);
 
-    const deckInsertPromises = equippedCards.map((card) => {
+    const deckInsertPromises = equippedCards.map((card: Card) => {
       return client.query(
         `
         INSERT INTO decks (fighter_id, slot, card_id)
@@ -189,14 +218,4 @@ const postEquippedCard = async (req, res) => {
   } finally {
     client.release();
   }
-};
-
-module.exports = {
-  getAllCards,
-  getOwnedCards,
-  getEquippedCard,
-  postEquippedCard,
-  createInitialCollection,
-  getDeckForFighter,
-  getCardCollection,
 };

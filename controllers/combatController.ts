@@ -1,22 +1,28 @@
-const db = require("../db");
-const { executeCombat } = require("../battle/battle");
-const crypto = require("crypto");
+import { Request, Response } from "express";
+import { db } from "../db";
+import crypto from "crypto";
+import { executeCombat } from "../battle/battle";
 
 const generateRandomSeed = () => {
   return crypto.randomBytes(16).toString("hex");
 };
 
-const saveCombatResult = async (req, res) => {
+export const saveCombatResult = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { fighter1, fighter2 } = req.body;
 
   if (!fighter1 || !fighter2) {
-    return res.status(400).json({ error: "Invalid fighter data" });
+    res.status(400).json({ error: "Invalid fighter data" });
   }
 
   const seed = generateRandomSeed();
 
   const { fighter1Id, fighter2Id, winner, loser, combatLog } =
     await executeCombat(fighter1, fighter2, seed);
+
+  console.log(combatLog);
 
   const query = `
     INSERT INTO combats (
@@ -51,7 +57,10 @@ const saveCombatResult = async (req, res) => {
   }
 };
 
-const getUserCombatHistory = async (req, res) => {
+export const getUserCombatHistory = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const fighter_id = req.params.fighter_id;
 
   const query = `
@@ -69,9 +78,4 @@ const getUserCombatHistory = async (req, res) => {
     console.error("Error fetching user combat history:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
-
-module.exports = {
-  saveCombatResult,
-  getUserCombatHistory,
 };

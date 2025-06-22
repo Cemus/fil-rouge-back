@@ -1,10 +1,29 @@
+import { Card, Condition, Effect, Fighter } from "../types/types";
+
+interface State {
+  fighter1Health: number;
+  fighter2Health: number;
+  fighter1Energy: string[];
+  fighter2Energy: string[];
+  fighter1Range: number;
+  fighter2Range: number;
+  fighter1Position: number;
+  fighter2Position: number;
+}
+
 const seedrandom = require("seedrandom");
 
-const executeCombat = async (fighter1, fighter2, seed) => {
+export const executeCombat = async (
+  fighter1: Fighter,
+  fighter2: Fighter,
+  seed: string
+) => {
+  console.log(fighter1);
+  console.log(fighter2);
   let fighter1Health = fighter1.stats.hp;
   let fighter2Health = fighter2.stats.hp;
-  let fighter1Energy = [];
-  let fighter2Energy = [];
+  let fighter1Energy: string[] = [];
+  let fighter2Energy: string[] = [];
 
   const maxTurns = 1000;
   let turn = 0;
@@ -16,9 +35,6 @@ const executeCombat = async (fighter1, fighter2, seed) => {
 
   let fighter1Range = 1;
   let fighter2Range = 1;
-  console.log("fighter", fighter1);
-  console.log("eq", fighter1.equipment);
-  console.log("wea", fighter1.equipment.weapon);
 
   if (fighter1.equipment.weapon) {
     fighter1Range = fighter1.equipment.weapon.range;
@@ -28,7 +44,7 @@ const executeCombat = async (fighter1, fighter2, seed) => {
     fighter2Range = fighter2.equipment.weapon.range;
   }
 
-  let state = {
+  let state: State = {
     fighter1Health,
     fighter2Health,
     fighter1Energy,
@@ -51,18 +67,16 @@ const executeCombat = async (fighter1, fighter2, seed) => {
       {
         fighter: first,
         isPlayer: first === fighter1,
-        deck: first.deck.sort((a, b) => a.slot - b.slot),
+        deck: first.deck.sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0)),
       },
       {
         fighter: second,
         isPlayer: second === fighter1,
-        deck: second.deck.sort((a, b) => a.slot - b.slot),
+        deck: second.deck.sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0)),
       },
     ];
 
     for (const { fighter, isPlayer, deck } of players) {
-      console.log("FIGHTER", fighter);
-      console.log("DECK", deck);
       let currentCard = await getValidCard(deck, isPlayer, state);
       if (currentCard) {
         for (const effect of currentCard.effects || []) {
@@ -105,12 +119,12 @@ const executeCombat = async (fighter1, fighter2, seed) => {
     state.fighter1Health > state.fighter2Health ? fighter1.id : fighter2.id;
   const loser =
     state.fighter1Health > state.fighter2Health ? fighter2.id : fighter1.id;
-  //Penser au cas invalide de combatlog vide
+
   return { fighter1Id, fighter2Id, winner, loser, combatLog };
 };
 
-const getTurnOrder = (fighter1, fighter2, seed) => {
-  const calculateInitiative = (spd, fighter) => {
+const getTurnOrder = (fighter1: Fighter, fighter2: Fighter, seed: string) => {
+  const calculateInitiative = (spd: number, fighter: Fighter) => {
     const rng = seedrandom(seed + fighter.id);
     const randomMultiplier = rng() * (1.125 - 0.875 + 0.875);
     return Math.floor(spd * randomMultiplier);
@@ -124,7 +138,7 @@ const getTurnOrder = (fighter1, fighter2, seed) => {
     : { first: fighter2, second: fighter1 };
 };
 
-const getValidCard = (deck, isfighter, state) => {
+const getValidCard = (deck: Card[], isfighter: boolean, state: State) => {
   for (const cardData of deck) {
     const allConditionsMet = cardData.conditions.every((condition) => {
       return areConditionsMet(condition, isfighter, state);
@@ -136,7 +150,11 @@ const getValidCard = (deck, isfighter, state) => {
   return null;
 };
 
-const calculateDamage = (cardDamage, fighter, seed) => {
+const calculateDamage = (
+  cardDamage: number,
+  fighter: Fighter,
+  seed: string
+) => {
   const rng = seedrandom(seed);
   const randomMultiplier = rng() * (1.125 - 0.875 + 0.875);
   const atk = fighter.stats.atk;
@@ -152,7 +170,11 @@ const calculateDamage = (cardDamage, fighter, seed) => {
   );
 };
 
-const areConditionsMet = (condition, isfighter, state) => {
+const areConditionsMet = (
+  condition: Condition,
+  isfighter: boolean,
+  state: State
+) => {
   switch (condition.type) {
     case "healthAbove":
       return isfighter
@@ -166,10 +188,10 @@ const areConditionsMet = (condition, isfighter, state) => {
 
     case "energyAbove":
       return isfighter
-        ? state.fighter1Energy.filter((e) => {
+        ? state.fighter1Energy.filter((e: string) => {
             return e === "energy";
           }).length > condition.value
-        : state.fighter2Energy.filter((e) => {
+        : state.fighter2Energy.filter((e: string) => {
             return e === "energy";
           }).length > condition.value;
 
@@ -180,10 +202,10 @@ const areConditionsMet = (condition, isfighter, state) => {
 
     case "energyCost":
       return isfighter
-        ? state.fighter1Energy.filter((e) => {
+        ? state.fighter1Energy.filter((e: string) => {
             return e === "energy";
           }).length >= condition.value
-        : state.fighter2Energy.filter((e) => {
+        : state.fighter2Energy.filter((e: string) => {
             return e === "energy";
           }).length >= condition.value;
 
@@ -220,7 +242,13 @@ const areConditionsMet = (condition, isfighter, state) => {
   }
 };
 
-const applyCardEffects = (effect, isfighter, state, seed, currentFighter) => {
+const applyCardEffects = (
+  effect: Effect,
+  isfighter: boolean,
+  state: State,
+  seed: string,
+  currentFighter: Fighter
+) => {
   let newState = { ...state };
   switch (effect.type) {
     case "damage":
@@ -319,7 +347,11 @@ const applyCardEffects = (effect, isfighter, state, seed, currentFighter) => {
   return newState;
 };
 
-const canFighterMove = (fighter1Position, fighter2Position, distance) => {
+const canFighterMove = (
+  fighter1Position: number,
+  fighter2Position: number,
+  distance: number
+) => {
   const isOnLeftSide = fighter1Position < fighter2Position;
   const newPosition = isOnLeftSide
     ? fighter1Position + distance * 3
@@ -334,9 +366,9 @@ const canFighterMove = (fighter1Position, fighter2Position, distance) => {
 };
 
 const isAtWeaponReach = (
-  currentFighterRange,
-  currentFighterPosition,
-  otherFighterPosition
+  currentFighterRange: number,
+  currentFighterPosition: number,
+  otherFighterPosition: number
 ) => {
   let isCloseEnough = false;
 
@@ -349,6 +381,18 @@ const isAtWeaponReach = (
   return isCloseEnough;
 };
 
-module.exports = {
-  executeCombat,
+export const baseStats = () => {
+  return {
+    level: 1,
+    skillPoint: 3,
+    xpCurrent: 0,
+    xpMax: 100,
+    stat: {
+      hp: 10,
+      atk: 10,
+      mag: 10,
+      spd: 10,
+      rng: 10,
+    },
+  };
 };
