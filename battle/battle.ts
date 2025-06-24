@@ -20,8 +20,12 @@ export const executeCombat = async (
 ) => {
   console.log(fighter1);
   console.log(fighter2);
-  let fighter1Health = fighter1.stats.hp;
-  let fighter2Health = fighter2.stats.hp;
+
+  let updatedFighter1 = updateFighter(fighter1);
+  let updatedFighter2 = updateFighter(fighter2);
+
+  let fighter1Health = updatedFighter1.stats.hp;
+  let fighter2Health = updatedFighter2.stats.hp;
   let fighter1Energy: string[] = [];
   let fighter2Energy: string[] = [];
 
@@ -61,17 +65,21 @@ export const executeCombat = async (
   ) {
     const currentSeed = `${seed}-${turn}`;
 
-    const { first, second } = getTurnOrder(fighter1, fighter2, currentSeed);
+    const { first, second } = getTurnOrder(
+      updatedFighter1,
+      updatedFighter2,
+      currentSeed
+    );
 
     const players = [
       {
         fighter: first,
-        isPlayer: first === fighter1,
+        isPlayer: first === updatedFighter1,
         deck: first.deck.sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0)),
       },
       {
         fighter: second,
-        isPlayer: second === fighter1,
+        isPlayer: second === updatedFighter1,
         deck: second.deck.sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0)),
       },
     ];
@@ -115,12 +123,35 @@ export const executeCombat = async (
 
   const fighter1Id = fighter1.id;
   const fighter2Id = fighter2.id;
-  const winner =
+  let winner: number | null =
     state.fighter1Health > state.fighter2Health ? fighter1.id : fighter2.id;
-  const loser =
-    state.fighter1Health > state.fighter2Health ? fighter2.id : fighter1.id;
+  if (state.fighter1Health > state.fighter2Health) {
+    winner = fighter1.id;
+  } else if (state.fighter1Health < state.fighter2Health) {
+    winner = fighter2.id;
+  } else {
+    winner = null;
+  }
 
-  return { fighter1Id, fighter2Id, winner, loser, combatLog };
+  return { fighter1Id, fighter2Id, winner, combatLog };
+};
+
+const updateFighter = (fighter: Fighter): Fighter => {
+  const updatedFighter = { ...fighter };
+  updatedFighter.stats = { ...fighter.stats };
+
+  for (const key in updatedFighter.equipment) {
+    const element =
+      updatedFighter.equipment[key as keyof typeof updatedFighter.equipment];
+    if (element) {
+      updatedFighter.stats.hp += element.hp;
+      updatedFighter.stats.atk += element.atk;
+      updatedFighter.stats.spd += element.spd;
+      updatedFighter.stats.mag += element.mag;
+      updatedFighter.stats.rng += element.range - 1;
+    }
+  }
+  return updatedFighter;
 };
 
 const getTurnOrder = (fighter1: Fighter, fighter2: Fighter, seed: string) => {
@@ -250,6 +281,7 @@ const applyCardEffects = (
   currentFighter: Fighter
 ) => {
   let newState = { ...state };
+  console.log(effect);
   switch (effect.type) {
     case "damage":
       const damage = calculateDamage(effect.value, currentFighter, seed);
@@ -260,12 +292,12 @@ const applyCardEffects = (
         newState.fighter1Health = Math.max(0, state.fighter1Health - damage);
       }
       break;
-    case "gain_energy":
+    case "gainEnergy":
       {
+        const maxEnergy = 5;
         const tempEnergy = isfighter
           ? [...state.fighter1Energy]
           : [...state.fighter2Energy];
-        const maxEnergy = 5;
 
         for (let i = 0; i < effect.value; i++) {
           if (tempEnergy.length <= maxEnergy) {
@@ -282,7 +314,7 @@ const applyCardEffects = (
         }
       }
       break;
-    case "energy_cost":
+    case "energyCost":
       {
         const tempEnergy = isfighter
           ? [...newState.fighter1Energy]
@@ -303,7 +335,7 @@ const applyCardEffects = (
         }
       }
       break;
-    case "health_cost":
+    case "healthCost":
       if (isfighter) {
         newState.fighter1Health -= effect.value;
       } else {

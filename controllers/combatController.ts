@@ -19,17 +19,20 @@ export const saveCombatResult = async (
 
   const seed = generateRandomSeed();
 
-  const { fighter1Id, fighter2Id, winner, loser, combatLog } =
-    await executeCombat(fighter1, fighter2, seed);
+  const { fighter1Id, fighter2Id, winner, combatLog } = await executeCombat(
+    fighter1,
+    fighter2,
+    seed
+  );
 
   console.log(combatLog);
 
   const query = `
     INSERT INTO combats (
       fighter1_id, fighter2_id, fighter1_name, fighter2_name, 
-      winner_id, loser_id, seed, combat_log, created_at
+      winner_id, seed, combat_log, created_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, NOW()
+      $1, $2, $3, $4, $5, $6, $7, NOW()
     )
     RETURNING *;
   `;
@@ -40,8 +43,6 @@ export const saveCombatResult = async (
     fighter1.name,
     fighter2.name,
     winner,
-    loser,
-    seed,
     JSON.stringify(combatLog),
   ];
 

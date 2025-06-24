@@ -45,7 +45,7 @@ export const seekFighters = async (req: Request, res: Response) => {
 
   try {
     const fightersResult = await db.query(
-      `SELECT * FROM fighters WHERE id != $1 ORDER BY RANDOM() LIMIT 1;`,
+      `SELECT * FROM fighters WHERE id != $1 LIMIT 5;`,
       [fighter_id]
     );
 
