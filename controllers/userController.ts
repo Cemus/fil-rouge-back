@@ -12,45 +12,54 @@ import {
 
 export const register = async (req: Request, res: Response) => {
   const { username, password } = req.body;
-  const client = await db.connect();
+  const client = await db.connect(); // db est censé être un pool
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    //transaction
     await client.query("BEGIN");
 
-    //create user
-    const userResult = await db.query(
-      `INSERT INTO users (username, password, created_at, updated_at) VALUES ($1, $2,NOW(),NOW()) RETURNING id`,
+    const usernameCheck = await client.query(
+      `SELECT username FROM users WHERE username = $1`,
+      [username]
+    );
+
+    if (usernameCheck.rows.length > 0) {
+      throw new Error("Username already exists");
+    }
+
+    const userResult = await client.query(
+      `INSERT INTO users (username, password, created_at, updated_at) 
+       VALUES ($1, $2, NOW(), NOW()) RETURNING id`,
       [username, hashedPassword]
     );
+
     const newUserId = userResult.rows[0].id;
 
-    //first cards
     await createInitialCardCollection({ id: newUserId }, client);
     await createInitialEquipmentCollection({ id: newUserId }, client);
 
-    //commit
-    await db.query("COMMIT");
+    await client.query("COMMIT");
 
     const token = jwt.sign(
       { id: newUserId },
       process.env.JWT_SECRET as string,
-      {
-        expiresIn: "1h",
-      }
+      { expiresIn: "1h" }
     );
 
     res.status(201).json({ token });
   } catch (error: any) {
-    await db.query("ROLLBACK");
+    await client.query("ROLLBACK");
     console.error("Error during register:", error);
 
     const errorMessage =
-      error.code === "23505" ? "Username already in use" : "An error occurred";
+      error.message === "Username already exists"
+        ? error.message
+        : "An error occurred";
 
     res.status(400).json({ error: errorMessage });
+  } finally {
+    client.release();
   }
 };
 
