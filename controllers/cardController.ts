@@ -22,10 +22,10 @@ export async function createInitialCardCollection(
     for (const cardId of initialCardIds) {
       await transactionClient.query(
         `
-        INSERT INTO card_collections (user_id, card_id)
-        VALUES ($1, $2);
+        INSERT INTO card_collections (user_id, card_id,quantity)
+        VALUES ($1, $2,$3);
         `,
-        [newUser.id, cardId]
+        [newUser.id, cardId, 1]
       );
     }
   } catch (error) {

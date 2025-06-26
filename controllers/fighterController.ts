@@ -122,9 +122,19 @@ export const createFighter = async (
       ]
     );
 
-    await db.query(`INSERT INTO stats (fighter_id) VALUES ($1)`, [
-      newFighterId,
-    ]);
+    await db.query(
+      `INSERT INTO stats 
+    (fighter_id, hp, atk, spd, mag, level, experience, xp_max, attribute_points)
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [newFighterId, 25, 5, 5, 5, 1, 0, 100, 0]
+    );
+
+    await db.query(
+      `INSERT INTO decks 
+    (fighter_id, card_id, slot)
+   VALUES ($1, $2, $3)`,
+      [newFighterId, 31, 1]
+    );
 
     await db.query("COMMIT");
 
