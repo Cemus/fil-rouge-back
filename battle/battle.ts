@@ -29,7 +29,7 @@ export const executeCombat = async (
   let fighter1Energy: string[] = [];
   let fighter2Energy: string[] = [];
 
-  const maxTurns = 1000;
+  const maxTurns = 100;
   let turn = 0;
   let combatLog = [];
 
