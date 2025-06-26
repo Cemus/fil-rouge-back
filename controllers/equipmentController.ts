@@ -21,9 +21,16 @@ export const getFighterEquipment = async (fighterId: number) => {
       `,
       [fighterId]
     );
-
+    console.log(result.rows);
+    if (result.rows.length === 0) {
+      return {
+        weapon: null,
+        feet: null,
+        body: null,
+        hands: null,
+      };
+    }
     const equipment = result.rows[0].equipment;
-    console.log(equipment);
     return toCamelCase(equipment);
   } catch (error) {
     console.error(
@@ -45,6 +52,7 @@ export const getUserEquipments = async (userId: number) => {
   `;
 
     const result = await db.query(query, [userId]);
+
     return toCamelCase(result.rows);
   } catch (error) {
     console.error(
