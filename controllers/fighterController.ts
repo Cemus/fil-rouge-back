@@ -100,7 +100,7 @@ export const createFighter = async (
       throw new Error("No user id sent.");
     }
     const fighterResult = await db.query(
-      `INSERT INTO fighters (name, user_id) VALUES ($1, $2) RETURNING id`,
+      `INSERT INTO fighters (name, user_id,created_at, updated_at) VALUES ($1, $2,NOW(),NOW()) RETURNING id`,
       [fighterName, id]
     );
     const newFighterId = fighterResult.rows[0].id;
