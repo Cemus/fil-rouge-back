@@ -18,9 +18,6 @@ export const executeCombat = async (
   fighter2: Fighter,
   seed: string
 ) => {
-  console.log(fighter1);
-  console.log(fighter2);
-
   let updatedFighter1 = updateFighter(fighter1);
   let updatedFighter2 = updateFighter(fighter2);
 
@@ -123,8 +120,8 @@ export const executeCombat = async (
 
   const fighter1Id = fighter1.id;
   const fighter2Id = fighter2.id;
-  let winner: number | null =
-    state.fighter1Health > state.fighter2Health ? fighter1.id : fighter2.id;
+  let winner: number | null;
+
   if (state.fighter1Health > state.fighter2Health) {
     winner = fighter1.id;
   } else if (state.fighter1Health < state.fighter2Health) {

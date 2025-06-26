@@ -13,7 +13,7 @@ export interface CustomRequest extends Request {
 export const getFighter = async (userId: number) => {
   try {
     const fightersResult = await db.query(
-      `SELECT * FROM fighters WHERE user_id = $1`,
+      `SELECT id, user_id, name, created_at, updated_at FROM fighters WHERE user_id = $1`,
       [userId]
     );
 
@@ -45,7 +45,7 @@ export const seekFighters = async (req: Request, res: Response) => {
 
   try {
     const fightersResult = await db.query(
-      `SELECT * FROM fighters WHERE id != $1 LIMIT 5;`,
+      `SELECT id, user_id, name, created_at, updated_at FROM fighters WHERE id != $1 LIMIT 5;`,
       [fighter_id]
     );
 

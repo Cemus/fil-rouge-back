@@ -2,19 +2,21 @@ import { Request, Response } from "express";
 import { db } from "../db";
 import crypto from "crypto";
 import { executeCombat } from "../battle/battle";
+import { Fighter } from "../types/types";
 
 const generateRandomSeed = () => {
   return crypto.randomBytes(16).toString("hex");
 };
 
 export const saveCombatResult = async (
-  req: Request,
+  req: Request<{}, {}, { fighter1: Fighter; fighter2: Fighter }>,
   res: Response
 ): Promise<void> => {
   const { fighter1, fighter2 } = req.body;
 
   if (!fighter1 || !fighter2) {
     res.status(400).json({ error: "Invalid fighter data" });
+    return;
   }
 
   const seed = generateRandomSeed();
@@ -24,8 +26,6 @@ export const saveCombatResult = async (
     fighter2,
     seed
   );
-
-  console.log(combatLog);
 
   const query = `
     INSERT INTO combats (
