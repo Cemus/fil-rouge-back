@@ -14,7 +14,7 @@ export async function createInitialEquipmentCollection(
     for (const equipmentId of initialEquipmentIds) {
       await transactionClient.query(
         `
-        INSERT INTO item_collections (user_id, card_id,quantity)
+        INSERT INTO item_collections (user_id, item_id,quantity)
         VALUES ($1, $2,1);
         `,
         [newUser.id, equipmentId]
