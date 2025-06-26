@@ -187,18 +187,17 @@ const calculateDamage = (
   seed: string
 ) => {
   const rng = seedrandom(seed);
-  const randomMultiplier = rng() * (1.125 - 0.875 + 0.875);
+  const randomMultiplier = 0.875 + rng() * 0.25;
   const atk = fighter.stats.atk;
   const level = fighter.stats.level;
-  console.log(
-    "damage:",
+  const damage = Math.max(
+    1,
     Math.floor(
       cardDamage * randomMultiplier * (1 + atk * ((level + atk) / 256))
     )
   );
-  return Math.floor(
-    cardDamage * randomMultiplier * (1 + atk * ((level + atk) / 256))
-  );
+  console.log(damage);
+  return damage;
 };
 
 const areConditionsMet = (

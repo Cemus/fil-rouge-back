@@ -43,6 +43,7 @@ export const saveCombatResult = async (
     fighter1.name,
     fighter2.name,
     winner,
+    seed,
     JSON.stringify(combatLog),
   ];
 
