@@ -1,4 +1,5 @@
 import { Card, Condition, Effect, Fighter } from "../types/types";
+import seedrandom from "seedrandom";
 
 interface State {
   fighter1Health: number;
@@ -10,8 +11,6 @@ interface State {
   fighter1Position: number;
   fighter2Position: number;
 }
-
-const seedrandom = require("seedrandom");
 
 export const executeCombat = async (
   fighter1: Fighter,
@@ -154,7 +153,9 @@ const updateFighter = (fighter: Fighter): Fighter => {
 const getTurnOrder = (fighter1: Fighter, fighter2: Fighter, seed: string) => {
   const calculateInitiative = (spd: number, fighter: Fighter) => {
     const rng = seedrandom(seed + fighter.id);
-    const randomMultiplier = rng() * (1.125 - 0.875 + 0.875);
+    const min = 0.875;
+    const max = 1.125;
+    const randomMultiplier = min + rng() * (max - min);
     return Math.floor(spd * randomMultiplier);
   };
 
