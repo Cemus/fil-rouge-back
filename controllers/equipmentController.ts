@@ -1,6 +1,33 @@
 import { Request, Response } from "express";
 import { db } from "../db";
 import { toCamelCase } from "../utils/toCamelCase";
+import { User } from "../types/types";
+import { PoolClient } from "pg";
+
+export async function createInitialEquipmentCollection(
+  newUser: User,
+  transactionClient: PoolClient
+): Promise<void> {
+  const initialEquipmentIds = [1, 4];
+
+  try {
+    for (const equipmentId of initialEquipmentIds) {
+      await transactionClient.query(
+        `
+        INSERT INTO equipment_collection (user_id, card_id,quantity)
+        VALUES ($1, $2,1);
+        `,
+        [newUser.id, equipmentId]
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Erreur lors de la création de la collection initiale :",
+      error
+    );
+    throw error;
+  }
+}
 
 export const getFighterEquipment = async (fighterId: number) => {
   try {

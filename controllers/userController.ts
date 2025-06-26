@@ -1,12 +1,14 @@
 import { Request, Response } from "express";
-import { CustomRequest } from "../types/types";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
-import { createInitialCollection } from "./cardController";
+import { createInitialCardCollection } from "./cardController";
 import { getFighter } from "./fighterController";
 import { getCardCollection } from "./cardController";
-import { getUserEquipments } from "./equipmentController";
+import {
+  createInitialEquipmentCollection,
+  getUserEquipments,
+} from "./equipmentController";
 
 export const register = async (req: Request, res: Response) => {
   const { username, password } = req.body;
@@ -20,13 +22,14 @@ export const register = async (req: Request, res: Response) => {
 
     //create user
     const userResult = await db.query(
-      `INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id`,
+      `INSERT INTO users (username, password, created_at, updated_at) VALUES ($1, $2,NOW(),NOW()) RETURNING id`,
       [username, hashedPassword]
     );
     const newUserId = userResult.rows[0].id;
 
     //first cards
-    await createInitialCollection({ id: newUserId }, client);
+    await createInitialCardCollection({ id: newUserId }, client);
+    await createInitialEquipmentCollection({ id: newUserId }, client);
 
     //commit
     await db.query("COMMIT");

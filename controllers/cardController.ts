@@ -12,7 +12,7 @@ interface Card {
   [key: string]: any;
 }
 
-export async function createInitialCollection(
+export async function createInitialCardCollection(
   newUser: User,
   transactionClient: PoolClient
 ): Promise<void> {
