@@ -62,6 +62,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     if (userResult.rows.length === 0) {
       res.status(404).json({ error: "User not found" });
+      return;
     }
 
     const user = userResult.rows[0];
@@ -70,6 +71,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     if (!passwordMatch) {
       res.status(401).json({ error: "Invalid password" });
+      return;
     }
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string, {
