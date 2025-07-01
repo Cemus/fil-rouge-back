@@ -26,9 +26,8 @@ export const executeCombat = async (
   const fighter2Energy: string[] = [];
 
   const maxTurns = 100;
-  
+  const combatLog = [];
   let turn = 0;
- 
 
   if (!Array.isArray(fighter1.deck) || !Array.isArray(fighter2.deck)) {
     throw new Error("Invalid deck data");

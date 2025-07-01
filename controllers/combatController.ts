@@ -13,7 +13,6 @@ export const saveCombatResult = async (
   res: Response
 ): Promise<void> => {
   const { fighter1, fighter2 } = req.body;
-
   if (!fighter1 || !fighter2) {
     res.status(400).json({ error: "Invalid fighter data" });
     return;
@@ -26,7 +25,6 @@ export const saveCombatResult = async (
     fighter2,
     seed
   );
-
   const query = `
     INSERT INTO combats (
       fighter1_id, fighter2_id, fighter1_name, fighter2_name, 
@@ -46,7 +44,6 @@ export const saveCombatResult = async (
     seed,
     JSON.stringify(combatLog),
   ];
-
   try {
     const result = await db.query(query, values);
     res.status(201).json({
