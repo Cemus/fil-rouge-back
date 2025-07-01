@@ -142,6 +142,7 @@ export const createFighter = async (
    VALUES ($1)`,
       [newFighterId]
     );
+    console.log("inserting");
 
     await db.query("COMMIT");
 

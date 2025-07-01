@@ -48,7 +48,7 @@ export const getFighterEquipment = async (fighterId: number) => {
       `,
       [fighterId]
     );
-    console.log(result.rows);
+    console.log("get fighter eq", result.rows);
     if (result.rows.length === 0) {
       return {
         weapon: null,
