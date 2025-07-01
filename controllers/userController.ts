@@ -12,7 +12,7 @@ import {
 
 export const register = async (req: Request, res: Response) => {
   const { username, password } = req.body;
-  const client = await db.connect(); // db est censé être un pool
+  const client = await db.connect();
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
