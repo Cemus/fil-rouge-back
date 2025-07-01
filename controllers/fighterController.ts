@@ -136,6 +136,13 @@ export const createFighter = async (
       [newFighterId, 31, 1]
     );
 
+    await db.query(
+      `INSERT INTO equipments 
+    (fighter_id)
+   VALUES ($1)`,
+      [newFighterId]
+    );
+
     await db.query("COMMIT");
 
     res.status(201).json({ id: newFighterId, name: fighterName });

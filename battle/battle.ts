@@ -22,12 +22,13 @@ export const executeCombat = async (
 
   let fighter1Health = updatedFighter1.stats.hp;
   let fighter2Health = updatedFighter2.stats.hp;
-  let fighter1Energy: string[] = [];
-  let fighter2Energy: string[] = [];
+  const fighter1Energy: string[] = [];
+  const fighter2Energy: string[] = [];
 
   const maxTurns = 100;
+  
   let turn = 0;
-  let combatLog = [];
+ 
 
   if (!Array.isArray(fighter1.deck) || !Array.isArray(fighter2.deck)) {
     throw new Error("Invalid deck data");
